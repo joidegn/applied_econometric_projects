@@ -36,3 +36,18 @@ pairs(training.data2[, 11:15])  # looks like X11-X15 seem to be strongly correla
 
 #--> correlations from ds1 and ds2 might imply that we should use principal componen regression or ridge regression
 
+
+# principal components:
+pr.comp1 <- prcomp(training.data1[, 2:ncol(training.data1)-1], center=T, scale=T)  # we center and scale the variables before pca
+# --> it seems the first principal component captures a huge amount of the variation (0.5161)
+# this is in line with the correlation findings from above
+pr.comp2 <- prcomp(training.data2[, 2:ncol(training.data2)-1], center=T, scale=T)  # we center and scale the variables before pca
+# --> again the first principal componen catches a lot but not as much as with first data set (0.1513)
+# this may be in line with the correlation findings from above
+pr.comp3 <- prcomp(training.data3[, 2:ncol(training.data3)-1], center=T, scale=T)  # we center and scale the variables before pca
+# --> pca does not yield very important principal components. correlation of y with all covariates is low as well. I did not look at correlation between the covariates yet.
+# and the we did not find any high correlations (graphically)
+
+
+
+
