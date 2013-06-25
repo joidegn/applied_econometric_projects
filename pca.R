@@ -44,19 +44,14 @@ targeted.predictors <- function(training.data, included.variables=NULL, r=2, val
 }
 
 # targeted predictor fits and evaluation
-library(leaps)
-system.time(subset.model1 <- regsubsets(x=training.data1[, 2:ncol(training.data1)], y=training.data1[, 1], nbest=3, nvmax=ncol(training.data1)-1))
-models <- lapply(1:nrow(summary(subset.model1)$which), function(model) paste0('X', 1:((ncol(training.data1)-1)))[summary(subset.model1)$which[model, ]])
-best.subset.model1 <- lm(y~X32 + X40, data=training.data1)
-targeted.model1 <- targeted.predictors(training.data1, included.variables=c('X32', 'X40'), validation.data=validation.data1, r=2)
+best.subset.model1 <- subset.models[[1]]  # models used for comparison and variable extraction
+system.time(targeted.model1 <- targeted.predictors(training.data1, included.variables=attr(subset.models[[1]]$terms, 'term.labels'), validation.data=validation.data1, r=2))
 
-system.time(subset.model2 <- regsubsets(x=training.data2[, 2:ncol(training.data2)], y=training.data2[, 1]))
-best.subset.model2 <- lm(y~X11, data=training.data2)
-targeted.model2 <- targeted.predictors(training.data2, included.variables=c('X11'), validation.data=validation.data2, r=40)  # TODO: choose proper r
+best.subset.model2 <- subset.models[[2]]
+targeted.model2 <- targeted.predictors(training.data2, included.variables=attr(subset.models[[2]]$terms, 'term.labels'), validation.data=validation.data2, r=40)  # TODO: choose proper r
 
-system.time(subset.model3 <- regsubsets(x=training.data3[, 2:ncol(training.data3)], y=training.data3[, 1], really.big=T))
-best.subset.model3 <- lm(y~X54, data=training.data3)
-targeted.model3 <- targeted.predictors(training.data3, included.variables=c('X54'), validation.data=validation.data3, r=2)
+best.subset.model3 <- subset.models[[3]]
+targeted.model3 <- targeted.predictors(training.data3, included.variables=attr(subset.models[[3]]$terms, validation.data=validation.data3, r=2)
 
-comparison <- compare.mse(best.subset.model3, lm.model3, validation.data=validation.data3)
-do.call(grid.arrange, comparison$plots)
+#comparison <- compare.mse(best.subset.model3, lm.model3, validation.data=validation.data3)
+#do.call(grid.arrange, comparison$plots)
