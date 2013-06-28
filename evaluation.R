@@ -1,4 +1,5 @@
 library(ggplot2)
+library(gridExtra)
 compare.mse <- function(model1, model2, validation.data=NULL, training.data=NULL) {
     if (!is.null(training.data))
         data <- rbind(cbind(training.data, data.type='training data'), cbind(validation.data, data.type='validation data'))
@@ -37,4 +38,27 @@ plot.correlograms <- function(data.set, title="") {
     do.call(grid.arrange, correlograms)
 }
 
-mse <- function(model, data, dependent.var='y') mean((predict(model, newdata=data)-data[, dependent.var])^2)
+plot.predictions <- function(predictions, true.values) {
+    plot.data <- data.frame(y=c(true.values, predictions), type=c(rep('t', length(true.values)), rep('p', length(predictions))), x=1:(length(predictions) + length(true.values)))
+    print(
+        ggplot(data=plot.data, aes(x)) +
+        geom_line(aes(y=y, color=type))
+
+    )
+}
+
+mse <- function(model, validation.data, dependent.var='y', pr.comp=NULL) {
+    if (!is.null(pr.comp))  # we have been given a principal components model --> get principal components data
+        validation.data <- pr.comp.data(pr.comp, validation.data)
+    return(mean((predict(model, newdata=validation.data)-validation.data[, dependent.var])^2))
+
+}
+
+mses.kfold <- function(model, data, dependent.var='y', validation.ratio=0.2, pr.comp=NULL) { # k.fold cross validation, reports mses for each fold (needs load_data.R)
+    if (!is.null(pr.comp))  # we have been given a principal components model --> get principal components data
+        data <- pr.comp.data(pr.comp, data)
+    k.fold(data, function(training.data, validation.data, model) {
+        updated.model <- update(model, .~., data=training.data)  # retrain model
+        return(mean((validation.data$y-predict(updated.model, newdata=validation.data))^2))
+    }, validation.ratio, .export=c('model'), model=model)
+}

@@ -17,7 +17,7 @@ source('load_data.R')
 
 
 
-## targeted predictors TODO: results are really bad
+## targeted predictors
 # (Bai, Ng 2008)
 # we will use targeted predictors on the first data set because there we have 'weakly dependent data'
 # first augment training data by squares of the elements of training data (Bai, Ng 2008) dont include interactions because it does not increase predictive power with their data
@@ -27,7 +27,10 @@ targeted.predictors <- function(training.data, included.variables=NULL, r=2, val
     params <- paste0('X', 1:(ncol(training.data)-1))
     augmented.data <- cbind(training.data[, 2:ncol(training.data)], X_sq = training.data[, 2:ncol(training.data)]^2)
     pr.comp.targeted <- prcomp(augmented.data, center=T, scale=T)
-    forecasting.data <- cbind(training.data[, c('y', included.variables)], pr.comp.targeted$x[, 1:r])
+    if (r==1)  # R changes the column naming scheme if one column is selected
+        forecasting.data <- cbind(training.data[, c('y', included.variables)], PC1=pr.comp.targeted$x[, 1:r])
+    else
+        forecasting.data <- cbind(training.data[, c('y', included.variables)], pr.comp.targeted$x[, 1:r])
     targeted.model <- lm(y~., data=forecasting.data)
     # validation (should be moved to its own function but then we have to return the rotation matrix)
     if (!is.null(validation.data)) {
@@ -38,20 +41,57 @@ targeted.predictors <- function(training.data, included.variables=NULL, r=2, val
         # compare to simply using `included.variables` which should be e.g. the best subset coefficients
         comparison.model <- lm(as.formula(paste0('y~', paste(included.variables, collapse='+'))), data=training.data)
         comparison <- compare.mse(targeted.model, comparison.model, validation.data=cbind(y=validation.data$y, augmented.validation.data))
+        library(gridExtra)
         do.call(grid.arrange, comparison$plots)
     }
-    return(targeted.model)
+    return(list(
+        resulting.model = targeted.model,
+        pr.comp = pr.comp.targeted
+    ))
+}
+
+
+pr.comp.data <- function(pr.comp, data) {  # augments data matrix with principal component terms: centers, scales and rotates original matrix
+    augmented.data <- cbind(data[2:ncol(data)], data[2:ncol(data)]^2)
+    scaled.data <- scale(augmented.data, center=pr.comp$center, scale=pr.comp$scale)
+    return(as.data.frame(cbind(data, scaled.data %*% pr.comp$rotation)))
 }
 
 # targeted predictor fits and evaluation
-best.subset.model1 <- subset.models[[1]]  # models used for comparison and variable extraction
-system.time(targeted.model1 <- targeted.predictors(training.data1, included.variables=attr(subset.models[[1]]$terms, 'term.labels'), validation.data=validation.data1, r=2))
+#system.time(targeted.predictor1 <- targeted.predictors(training.data1, included.variables=attr(subset.models[[1]]$terms, 'term.labels'), validation.data=validation.data1, r=2))
+#targeted.model1 <- targeted.predictor1$resulting.model
+#
+#system.time(targeted.predictor2 <- targeted.predictors(training.data2, included.variables=attr(subset.models[[2]]$terms, 'term.labels'), validation.data=validation.data2, r=2))
+#targeted.model2 <- targeted.predictor2$resulting.model
+#
+#system.time(targeted.predictor3 <- targeted.predictors(training.data3, included.variables=attr(subset.models[[3]]$terms, 'term.labels'), validation.data=validation.data3, r=2))
+#targeted.model3 <- targeted.predictor3$resulting.model
 
-best.subset.model2 <- subset.models[[2]]
-targeted.model2 <- targeted.predictors(training.data2, included.variables=attr(subset.models[[2]]$terms, 'term.labels'), validation.data=validation.data2, r=40)  # TODO: choose proper r
 
-best.subset.model3 <- subset.models[[3]]
-targeted.model3 <- targeted.predictors(training.data3, included.variables=attr(subset.models[[3]]$terms, validation.data=validation.data3, r=2)
+# TODO: fix validation ratio and maybe repeat k.folds multiple times because results vary a lot
+system.time( # do cross validation to find optimal r (number of principal components to include) in a less-depent-on-sampling-way
+    targeted.predictor.results <- lapply(1:3, function(model.num) {
+        working.data <- get(paste0('working.data', model.num))
+        included.variables <- attr(subset.models[[model.num]]$terms, 'term.labels')
+        mse.values <- sapply(1:(ncol(working.data)-1), function(cur.r)  # get mse values for different r values. cross validation to rule out randomness
+            k.fold(data=working.data, function(training.data, validation.data, included.variables, targeted.predictors, pr.comp.data=pr.comp.data) {
+                targeted <- targeted.predictors(training.data, included.variables=included.variables, r=cur.r)
+                return(mean((predict(targeted$resulting.model, newdata=pr.comp.data(targeted$pr.comp, validation.data))-validation.data$y)^2))
+            }, validation.ratio=0.1, .export=c('included.variables', 'targeted.predictors', 'pr.comp.data'), included.variables=included.variables, targeted.predictors=targeted.predictors, pr.comp.data=pr.comp.data)
+        )
+        return(apply(mse.values, 2, function(vals) do.call(mean, vals)))  # report mean mse over k.folds for all models
+    })
+)
+optimal.r <- lapply(targeted.predictor.results, function(targeted.pred) which(min(targeted.pred) == targeted.pred))
 
-#comparison <- compare.mse(best.subset.model3, lm.model3, validation.data=validation.data3)
-#do.call(grid.arrange, comparison$plots)
+
+targeted.predictor.results <- lapply(1:3, function(model.num) return(targeted.predictors(get(paste0('working.data', model.num)), included.variables=attr(subset.models[[model.num]]$terms, 'term.labels'), r=optimal.r[[model.num]])))
+
+# mses.targeted <- sapply(1:1000, function(num) do.call(mean, mses.kfold(targeted.predictor.results[[1]]$resulting.model, working.data1, pr.comp=targeted.predictor.results[[1]]$pr.comp)))
+# mses.subset <- sapply(1:1000, function(num) do.call(mean, mses.kfold(subset.models[[1]], working.data1)))
+targeted.models <- lapply(targeted.predictor.results, function(predictor.results) predictor.results$resulting.model)
+targeted.pr.comp <- lapply(targeted.predictor.results, function(predictor.results) predictor.results$pr.comp)
+
+
+comparison <- compare.mse(subset.models[[3]], targeted.predictor.results[[3]]$resulting.model, validation.data=cbind(working.data3$y, pr.comp.data(targeted.predictor.results[[3]]$pr.comp, working.data3)))
+do.call(grid.arrange, comparison$plots)

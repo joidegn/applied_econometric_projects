@@ -7,6 +7,10 @@ library(reshape2)
 library(gridExtra)
 
 
+x.plot <- function(data.set, working.data) {
+    plots <- lapply(1:(ncol(working.data)) ggplot(data.frame(y=cbind(working.data$y, data.set$y), type=c(rep('w', nrow(working.data), rep('d', nrow(data.set))))), aes(y=y)))
+    plot(data.set3$X2); points(working.data3$X2, col="red")
+}
 #pdf('correlograms.pdf', onefile=T, width=20, height=20)
 #plot.correlograms(training.data1, 'training data from ds1')
 #plot.correlograms(training.data2, 'training data from ds2')
@@ -28,13 +32,13 @@ corr3 <- cor(training.data3[, 2:ncol(training.data3)])
 
 
 ## baseline models (they are pretty good)
-lm.model1 <- lm(y~., data=training.data1) # TODO: I dont know how the baseline models decide which variables are significant
-lm.model2 <- lm(y~., data=training.data2) # summary: very high R^2 for models 1 and 2
+lm.model1 <- lm(y~., data=working.data1) # TODO: I dont know how the baseline models decide which variables are significant
+lm.model2 <- lm(y~., data=working.data2) # summary: very high R^2 for models 1 and 2
 # test.model2 <- lm(y~X11+X12+X13+X14+X15, data=training.data2) # only one of the five is significant --> the others may be redundant (ANOVA?)
 # test.model2.2 <- lm(y~X11, data=training.data2)  # has nearly the same adjusted R^2 as test.model2
 # pr.test <- prcomp(training.data2[, 12:16], center=T, scale=T)
 # test.model2.3 <- lm(training.data2$y~pr.test$x[,1]) # OLS on first principal component has nearly the same R^2 as OLS on X12-X15
-lm.model3 <- lm(y~., data=training.data3)
+lm.model3 <- lm(y~., data=working.data3)
 
 
 

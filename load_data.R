@@ -23,6 +23,10 @@ prediction.data1 <- data.set1[is.na(data.set1$y),]
 prediction.data2 <- data.set2[is.na(data.set2$y),]
 prediction.data3 <- data.set3[is.na(data.set3$y),]
 
+x.vars1 <- paste0('X', 1:(ncol(data.set1)-1))
+x.vars2 <- paste0('X', 1:(ncol(data.set2)-1))
+x.vars3 <- paste0('X', 1:(ncol(data.set3)-1))
+
 
 ####################################### Convenience functions #######################################
 sample.k.folds <- function(data.set, k=3) {
@@ -31,23 +35,56 @@ sample.k.folds <- function(data.set, k=3) {
     return(lapply(1:k, function(sample.num) data.set[sample(n), ][(fold.size*(sample.num-1)+1):(fold.size*sample.num), ]))
 }
 
-k.fold <- function(data.set, fun, validation.ratio=0.2, .export=NULL, ...) {  # fun is repeated k times with training.data and validation.data sets being changed every time
+k.fold.repeat <- function(repeat.num, ...) {  # repeats k.fold repeat.num times. Every result will be in a list. since k.fold returns a list for each fold, we get a list of lists, indexed by first the repetition number and secondly the fold number
     other.args <- list(...)
-    for (name in names(other.args)) assign(name, other.args[name])  # dont do this at home, kids!!
+    lapply(1:repeat.num, function(cur.repetition) {
+        do.call(k.fold, other.args)
+    })
+}
+
+k.fold <- function(data.set, fun, validation.ratio=0.2, seed=NULL, parallel=F, .export=NULL, ...) {  # fun is repeated k times with training.data and validation.data sets being changed every time
     num.folds <- 1/validation.ratio
+    if (!is.null(seed)) {
+        old.seed <- get(".Random.seed", mode="numeric", envir=globalenv());
+        set.seed(seed)
+    }
     samples <- sample.k.folds(data.set, num.folds)
-    foreach(validation.sample.index=1:num.folds, .export=.export) %dopar% {  # replace %dopar% with %do% if clusters cannot be used or if on a windows machine
-
-        validation.set <- samples[[validation.sample.index]]
-        training.set <- do.call(rbind, samples[-validation.sample.index])
-
-        return(do.call(fun, c(list(training.set, validation.set), other.args)))
+    if (!is.null(seed))
+        assign(".Random.seed", old.seed, envir=globalenv());
+    other.args <- list(...)
+    if (parallel==T) {
+        for (name in names(other.args)) assign(name, other.args[name])  # dont try this at home, kids!!
+        library(foreach)
+        foreach(validation.sample.index=1:num.folds, .export=.export) %dopar% {  # needs a registered snow cluster for performance boost
+            validation.set <- samples[[validation.sample.index]]
+            training.set <- do.call(rbind, samples[-validation.sample.index])
+            return(do.call(fun, c(list(training.set, validation.set), other.args)))
+        }
+    }
+    else {
+        return(lapply(1:num.folds, function(validation.sample.index) {
+            validation.set <- samples[[validation.sample.index]]
+            training.set <- do.call(rbind, samples[-validation.sample.index])
+            return(do.call(fun, c(list(training.set, validation.set), other.args)))
+        }))
     }
 }
 
-#k.fold.test <- function() {
-#    k.fold(data.frame(c(1,2,3), c(2,3,4)), function(training.data, validation.data, a) {
-#        print(a)
-#    }, .export=c('a'), a=c('aaa'))
-#
-#}
+# just a test function to see if the k.fold function does what it should do with all this environment switching etc. happening due to parallelization
+k.fold.test <- function() {
+    folds <- k.fold(working.data1, function(training.data, validation.data) {
+        return(rbind(training.data, validation.data))
+    }, seed=0xbeef)
+    folds.parallel <- k.fold(working.data1, function(training.data, validation.data) {
+        return(rbind(training.data, validation.data))
+    }, parallel=T, seed=0xbeef)
+    return(
+        all(  # tests if parallel and non parallel are the same for the same seed
+            sapply(1:length(folds), function(fold.num) all(folds[[fold.num]] == folds.parallel[[fold.num]]))
+        ) && all(# tests if validation set is different every fold for non parallel
+            !sapply(1:length(folds), function(fold.num) all(sapply((1:length(folds))[-fold.num], function(other.fold.num) all(folds[[fold.num]] == folds[[other.fold.num]]))))
+        ) && all(# tests if validation set is different every fold for parallel
+            !sapply(1:length(folds), function(fold.num) all(sapply((1:length(folds.parallel))[-fold.num], function(other.fold.num) all(folds.parallel[[fold.num]] == folds.parallel[[other.fold.num]]))))
+        )
+    )
+}
