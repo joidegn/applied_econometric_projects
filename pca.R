@@ -68,18 +68,22 @@ pr.comp.data <- function(pr.comp, data) {  # augments data matrix with principal
 #targeted.model3 <- targeted.predictor3$resulting.model
 
 
-# TODO: fix validation ratio and maybe repeat k.folds multiple times because results vary a lot
+# TODO: fix validation ratio and maybe repeat k.folds multiple times because results vary a lot. --> for 5 repetitions they still do
 system.time( # do cross validation to find optimal r (number of principal components to include) in a less-depent-on-sampling-way
     targeted.predictor.results <- lapply(1:3, function(model.num) {
         working.data <- get(paste0('working.data', model.num))
         included.variables <- attr(subset.models[[model.num]]$terms, 'term.labels')
-        mse.values <- sapply(1:(ncol(working.data)-1), function(cur.r)  # get mse values for different r values. cross validation to rule out randomness
-            k.fold(data=working.data, function(training.data, validation.data, included.variables, targeted.predictors, pr.comp.data=pr.comp.data) {
+        repetitions <- 5  # only use higher value if you have a lot of time ((ncol(data)-1)*5*(1/validation.ratio)) iterations
+        mse.values <- lapply(1:(ncol(working.data)-1), function(cur.r)  # get mse values for different r values. cross validation to rule out randomness
+            k.fold.repeat(repetitions, data=working.data, function(training.data, validation.data, included.variables, targeted.predictors, pr.comp.data=pr.comp.data) {
                 targeted <- targeted.predictors(training.data, included.variables=included.variables, r=cur.r)
                 return(mean((predict(targeted$resulting.model, newdata=pr.comp.data(targeted$pr.comp, validation.data))-validation.data$y)^2))
-            }, validation.ratio=0.1, .export=c('included.variables', 'targeted.predictors', 'pr.comp.data'), included.variables=included.variables, targeted.predictors=targeted.predictors, pr.comp.data=pr.comp.data)
+            }, validation.ratio=0.1, parallel=T, .export=c('included.variables', 'targeted.predictors', 'pr.comp.data'), included.variables=included.variables, targeted.predictors=targeted.predictors, pr.comp.data=pr.comp.data)
         )
-        return(apply(mse.values, 2, function(vals) do.call(mean, vals)))  # report mean mse over k.folds for all models
+        # mse.values is a list of lists of lists
+        avg.folds <- lapply(mse.values, function(model) lapply(model, function(repetition) Reduce('+', repetition)/(length(repetition))))
+        avg.folds.repetitions <- sapply(avg.folds, function(model) Reduce('+', model)/repetitions)
+        return(avg.folds.repetitions)  # report mean mse over k.folds for all models
     })
 )
 optimal.r <- lapply(targeted.predictor.results, function(targeted.pred) which(min(targeted.pred) == targeted.pred))

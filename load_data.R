@@ -31,7 +31,7 @@ x.vars3 <- paste0('X', 1:(ncol(data.set3)-1))
 ####################################### Convenience functions #######################################
 sample.k.folds <- function(data.set, k=3) {
     n <- nrow(data.set)
-    fold.size <- floor(n/k)  # we potentially loose an some obs here but at least folds are of same size
+    fold.size <- floor(n/k)  # we potentially loose some obs here but at least folds are of same size
     return(lapply(1:k, function(sample.num) data.set[sample(n), ][(fold.size*(sample.num-1)+1):(fold.size*sample.num), ]))
 }
 
