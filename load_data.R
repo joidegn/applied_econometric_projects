@@ -5,23 +5,28 @@ if (!exists('validation.size'))
 data.set1 <- read.csv('data/ds1.csv')
 data.set2 <- read.csv('data/ds2.csv')
 data.set3 <- read.csv('data/ds3.csv')
+data.set <- list(data.set1, data.set2, data.set3)  # for convenience
 
 working.data1 <- data.set1[!is.na(data.set1$y),]
 working.data2 <- data.set2[!is.na(data.set2$y),]
 working.data3 <- data.set3[!is.na(data.set3$y),]
+working.data <- list(working.data1, working.data2, working.data3)  # for convenience
 
 validation.sample <- sample(1:200, validation.size)
 validation.data1 <- working.data1[validation.sample, ]
 validation.data2 <- working.data2[validation.sample, ]
 validation.data3 <- working.data3[validation.sample, ]
+validation.data <- list(validation.data1, validation.data2, validation.data3)  # for convenience
 
 training.data1 <- working.data1[-validation.sample, ]
 training.data2 <- working.data2[-validation.sample, ]
 training.data3 <- working.data3[-validation.sample, ]
+training.data <- list(training.data1, training.data2, training.data3)  # for convenience
 
 prediction.data1 <- data.set1[is.na(data.set1$y),]
 prediction.data2 <- data.set2[is.na(data.set2$y),]
 prediction.data3 <- data.set3[is.na(data.set3$y),]
+prediction.data <- list(prediction.data1, prediction.data2, prediction.data3)  # for convenience
 
 x.vars1 <- paste0('X', 1:(ncol(data.set1)-1))
 x.vars2 <- paste0('X', 1:(ncol(data.set2)-1))
@@ -37,9 +42,7 @@ sample.k.folds <- function(data.set, k=3) {
 
 k.fold.repeat <- function(repeat.num, ...) {  # repeats k.fold repeat.num times. Every result will be in a list. since k.fold returns a list for each fold, we get a list of lists, indexed by first the repetition number and secondly the fold number
     other.args <- list(...)
-    lapply(1:repeat.num, function(cur.repetition) {
-        do.call(k.fold, other.args)
-    })
+    lapply(1:repeat.num, function(cur.repetition) do.call(k.fold, other.args))
 }
 
 k.fold <- function(data.set, fun, validation.ratio=0.2, seed=NULL, parallel=F, .export=NULL, ...) {  # fun is repeated k times with training.data and validation.data sets being changed every time

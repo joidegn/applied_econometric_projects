@@ -1,4 +1,5 @@
 validation.size <- 40
+library(ggplot2)
 source('load_data.R')  # loads the data and creates validation and training sets
 source('evaluation.R')  # to get some comparison functions
 
@@ -7,14 +8,14 @@ library(reshape2)
 library(gridExtra)
 
 
-x.plot <- function(data.set, working.data) {
-    plots <- lapply(1:(ncol(working.data)) ggplot(data.frame(y=cbind(working.data$y, data.set$y), type=c(rep('w', nrow(working.data), rep('d', nrow(data.set))))), aes(y=y)))
-    plot(data.set3$X2); points(working.data3$X2, col="red")
-}
-#pdf('correlograms.pdf', onefile=T, width=20, height=20)
-#plot.correlograms(training.data1, 'training data from ds1')
-#plot.correlograms(training.data2, 'training data from ds2')
-#plot.correlograms(training.data3, 'training data from ds3')
+#png('graphs/correlograms1.png', width=960, height=960)
+#plot.correlograms(working.data1, 'working data from ds1')
+#dev.off()
+#png('graphs/correlograms2.png', width=960, height=960)
+#plot.correlograms(working.data2, 'working data from ds2')
+#dev.off()
+#png('graphs/correlograms3.png', width=960, height=960)
+#plot.correlograms(working.data3, 'working data from ds3')
 #dev.off()
 
 # correlation between covariates:
@@ -22,6 +23,12 @@ x.plot <- function(data.set, working.data) {
 corr1 <- cor(training.data1[, 2:ncol(training.data1)])
 corr2 <- cor(training.data2[, 2:ncol(training.data2)])
 corr3 <- cor(training.data3[, 2:ncol(training.data3)])
+
+
+### lets find the variable that X57 has been derrived from
+i <<- 0
+apply(working.data3[, 1:(ncol(working.data3)-1)], 2, function(column) {print(i<<-i+1); plot(working.data3$X57, column); readline()})
+plot(working.data3$X57, working.data3$X10)
 
 #pairs(training.data2[, 12:16])  # looks like X11-X15 seem to be strongly correlated among each other
 # also all the data from ds1.csv seems to be moderately correlated

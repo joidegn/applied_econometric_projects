@@ -97,5 +97,5 @@ targeted.models <- lapply(targeted.predictor.results, function(predictor.results
 targeted.pr.comp <- lapply(targeted.predictor.results, function(predictor.results) predictor.results$pr.comp)
 
 
-comparison <- compare.mse(subset.models[[3]], targeted.predictor.results[[3]]$resulting.model, validation.data=cbind(working.data3$y, pr.comp.data(targeted.predictor.results[[3]]$pr.comp, working.data3)))
-do.call(grid.arrange, comparison$plots)
+#comparison <- compare.mse(subset.models[[3]], targeted.predictor.results[[3]]$resulting.model, validation.data=cbind(working.data3$y, pr.comp.data(targeted.predictor.results[[3]]$pr.comp, working.data3)))
+#do.call(grid.arrange, comparison$plots)
